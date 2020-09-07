@@ -448,7 +448,12 @@ export default {
       return Array.from(this.$refs.cmContainer.querySelectorAll('pre[role="presentation"] span'));
     },
     enableSpellCheck(clickQueue) {
-      this.getSpellCheckElements().forEach(elem => {
+      const elements = this.getSpellCheckElements()
+      if (elements.length === 0) {
+        // Make sure the queue will call the finish callback
+        clickQueue(() => {})
+      }
+      elements.forEach(elem => {
         elem.setAttribute('spellcheck', 'true')
         clickQueue(() => {
           const box = elem.getBoundingClientRect()
