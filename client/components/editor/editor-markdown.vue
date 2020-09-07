@@ -185,6 +185,7 @@
 
     markdown-help(v-if='helpShown')
     page-selector(mode='select', v-model='insertLinkDialog', :open-handler='insertLinkHandler', :path='path', :locale='locale')
+    loader(v-model='spellCheckProgress', title='Spell Checking', subtitle='Please Wait')
 </template>
 
 <script>
@@ -386,12 +387,12 @@ export default {
     return {
       fabInsertMenu: false,
       cm: null,
-      clickQueue: null,
       cursorPos: { ch: 0, line: 1 },
       previewShown: true,
       previewHTML: '',
       helpShown: false,
       spellModeActive: false,
+      spellCheckProgress: false,
       insertLinkDialog: false
     }
   },
@@ -419,8 +420,12 @@ export default {
     },
     spellModeActive (newValue, oldValue) {
       if (newValue && !oldValue) {
+        this.spellCheckProgress = true
+        const clickQueue = rateQueue(1, () => {
+          this.spellCheckProgress = false
+        })
         this.$nextTick(() => {
-          this.enableSpellCheck();
+          this.enableSpellCheck(clickQueue);
         })
       }
     }
@@ -440,10 +445,10 @@ export default {
     getSpellCheckElements() {
       return Array.from(this.$refs.cmContainer.querySelectorAll('pre[role="presentation"] span'));
     },
-    enableSpellCheck() {
+    enableSpellCheck(clickQueue) {
       this.getSpellCheckElements().forEach(elem => {
         elem.setAttribute('spellcheck', 'true')
-        this.clickQueue(() => {
+        clickQueue(() => {
           const box = elem.getBoundingClientRect()
           const coordX = box.left + (box.right - box.left) / 2
           const coordY = box.top + (box.bottom - box.top) / 2
@@ -740,8 +745,6 @@ export default {
     if (this.mode === 'create' && !this.$store.get('editor/content')) {
       this.$store.set('editor/content', '# Header\nYour content here')
     }
-
-    this.clickQueue = rateQueue(1);
 
     // Initialize Mermaid API
     mermaid.initialize({
