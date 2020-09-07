@@ -445,7 +445,7 @@ export default {
       this.processContent(newContent)
     }, 600),
     getSpellCheckElements() {
-      return Array.from(this.$refs.cmContainer.querySelectorAll('pre[role="presentation"] span'));
+      return Array.from(this.$refs.cmContainer.querySelectorAll('pre[role="presentation"] span:not([spellcheck])'));
     },
     enableSpellCheck(clickQueue) {
       const elements = this.getSpellCheckElements()
