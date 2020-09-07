@@ -421,7 +421,9 @@ export default {
     spellModeActive (newValue, oldValue) {
       if (newValue && !oldValue) {
         this.spellCheckProgress = true
+        const cmCursor = this.cm.getCursor()
         const clickQueue = rateQueue(1, () => {
+          this.cm.setCursor(cmCursor);
           this.spellCheckProgress = false
         })
         this.$nextTick(() => {
