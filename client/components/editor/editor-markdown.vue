@@ -104,7 +104,7 @@
             template(v-slot:activator='{ on }')
               v-btn.animated.fadeIn.wait-p1s(icon, tile, v-on='on', @click='spellModeActive = true').mx-0
                 v-icon(color='white') mdi-spellcheck
-            span {{$t('editor:markup.toggleSpellcheck')}}
+            span '{{$t('editor:markup.toggleSpellcheck')}}'
           v-tooltip(bottom, color='primary')
             template(v-slot:activator='{ on }')
               v-btn.animated.fadeIn.wait-p2s(icon, tile, v-on='on', @click='previewShown = !previewShown').mx-0
@@ -422,7 +422,7 @@ export default {
       if (newValue && !oldValue) {
         this.spellCheckProgress = true
         const cmCursor = this.cm.getCursor()
-        const clickQueue = rateQueue(1, () => {
+        const clickQueue = rateQueue(100, () => {
           this.cm.setCursor(cmCursor);
           this.spellCheckProgress = false
         })
