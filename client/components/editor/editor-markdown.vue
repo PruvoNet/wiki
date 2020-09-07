@@ -100,7 +100,7 @@
           span {{$t('editor:markup.horizontalBar')}}
         template(v-if='$vuetify.breakpoint.mdAndUp')
           v-spacer
-          v-tooltip(bottom, color='primary', v-if='previewShown')
+          v-tooltip(bottom, color='primary')
             template(v-slot:activator='{ on }')
               v-btn.animated.fadeIn.wait-p1s(icon, tile, v-on='on', @click='spellModeActive = !spellModeActive').mx-0
                 v-icon(:color='spellModeActive ? `amber` : `white`') mdi-spellcheck
@@ -164,7 +164,19 @@
               v-btn.mt-3.animated.fadeInLeft.wait-p9s(icon, tile, v-on='on', dark, @click='toggleHelp').mx-0
                 v-icon(:color='helpShown ? `teal` : ``') mdi-help-circle
             span {{$t('editor:markup.markdownFormattingHelp')}}
-      .editor-markdown-editor
+      transition(name='editor-markdown-spellcheck')
+        .editor-markdown-spellcheck(v-if='spellModeActive')
+          .editor-markdown-spellcheck-content.contents(ref='editorSpellcheckContainer')
+            pre
+              div(
+                style='white-space: pre-wrap'
+                spellcheck='true',
+                autocapitalize='true',
+                contenteditable='true',
+                ref='editorSpellcheck'
+                v-html='content'
+              )
+      .editor-markdown-editor(ref='cmContainer')
         textarea(ref='cm')
       transition(name='editor-markdown-preview')
         .editor-markdown-preview(v-if='previewShown')
@@ -172,9 +184,6 @@
             div(
               ref='editorPreview'
               v-html='previewHTML'
-              :spellcheck='spellModeActive'
-              :contenteditable='spellModeActive'
-              @blur='spellModeActive = false'
               )
 
     v-system-bar.editor-markdown-sysbar(dark, status, color='grey darken-3')
@@ -237,6 +246,7 @@ import mdFootnote from 'markdown-it-footnote'
 import mdImsize from 'markdown-it-imsize'
 import katex from 'katex'
 import underline from '../../libs/markdown-it-underline'
+import rateQueue from '../../libs/rateQueue'
 import 'katex/dist/contrib/mhchem'
 import twemoji from 'twemoji'
 import plantuml from './markdown/plantuml'
@@ -388,6 +398,7 @@ export default {
     return {
       fabInsertMenu: false,
       cm: null,
+      clickQueue: null,
       cursorPos: { ch: 0, line: 1 },
       previewShown: true,
       previewHTML: '',
@@ -406,7 +417,11 @@ export default {
     locale: get('page/locale'),
     path: get('page/path'),
     mode: get('editor/mode'),
-    activeModal: sync('editor/activeModal')
+    activeModal: sync('editor/activeModal'),
+    content: sync('editor/content'),
+    contentPreview() {
+      return _.escape(this.content);
+    }
   },
   watch: {
     previewShown (newValue, oldValue) {
@@ -421,7 +436,7 @@ export default {
     spellModeActive (newValue, oldValue) {
       if (newValue) {
         this.$nextTick(() => {
-          this.$refs.editorPreview.focus()
+          // this.$refs.editorSpellcheck.focus()
         })
       }
     }
@@ -455,6 +470,22 @@ export default {
       //   }
       // }
     },
+    processClickEvents(elem) {
+      elem.setAttribute('spellcheck', 'true')
+      this.clickQueue(() => {
+        const box = elem.getBoundingClientRect()
+        const coordX = box.left + (box.right - box.left) / 2
+        const coordY = box.top + (box.bottom - box.top) / 2
+        elem.dispatchEvent(new MouseEvent("mousedown", {
+          view: window,
+          bubbles: true,
+          cancelable: true,
+          clientX: coordX,
+          clientY: coordY,
+          button: 0
+        }))
+      });
+    },
     processContent (newContent) {
       linesMap = []
       // this.$store.set('editor/content', newContent)
@@ -465,6 +496,7 @@ export default {
         this.renderMermaidDiagrams()
         Prism.highlightAllUnder(this.$refs.editorPreview)
         Array.from(this.$refs.editorPreview.querySelectorAll('pre.line-numbers')).forEach(pre => pre.classList.add('prismjs'))
+        Array.from(this.$refs.cmContainer.querySelectorAll('pre[role="presentation"] span')).forEach(this.processClickEvents)
         this.scrollSync(this.cm)
       })
     },
@@ -732,6 +764,8 @@ export default {
       this.$store.set('editor/content', '# Header\nYour content here')
     }
 
+    this.clickQueue = rateQueue(1);
+
     // Initialize Mermaid API
     mermaid.initialize({
       startOnLoad: false,
@@ -751,6 +785,9 @@ export default {
       highlightSelectionMatches: {
         annotateScrollbar: true
       },
+      spellcheck: true,
+      autocorrect: true,
+      autocapitalize: true,
       viewportMargin: 50,
       inputStyle: 'contenteditable',
       allowDropFileTypes: ['image/jpg', 'image/png', 'image/svg', 'image/jpeg', 'image/gif'],
