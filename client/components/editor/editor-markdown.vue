@@ -100,10 +100,10 @@
           span {{$t('editor:markup.horizontalBar')}}
         template(v-if='$vuetify.breakpoint.mdAndUp')
           v-spacer
-          v-tooltip(bottom, color='primary')
+          v-tooltip(bottom, color='primary', v-if='!spellModeActive')
             template(v-slot:activator='{ on }')
-              v-btn.animated.fadeIn.wait-p1s(icon, tile, v-on='on', @click='spellModeActive = !spellModeActive').mx-0
-                v-icon(:color='spellModeActive ? `amber` : `white`') mdi-spellcheck
+              v-btn.animated.fadeIn.wait-p1s(icon, tile, v-on='on', @click='spellModeActive = true').mx-0
+                v-icon(color='white') mdi-spellcheck
             span {{$t('editor:markup.toggleSpellcheck')}}
           v-tooltip(bottom, color='primary')
             template(v-slot:activator='{ on }')
@@ -164,18 +164,6 @@
               v-btn.mt-3.animated.fadeInLeft.wait-p9s(icon, tile, v-on='on', dark, @click='toggleHelp').mx-0
                 v-icon(:color='helpShown ? `teal` : ``') mdi-help-circle
             span {{$t('editor:markup.markdownFormattingHelp')}}
-      transition(name='editor-markdown-spellcheck')
-        .editor-markdown-spellcheck(v-if='spellModeActive')
-          .editor-markdown-spellcheck-content.contents(ref='editorSpellcheckContainer')
-            pre
-              div(
-                style='white-space: pre-wrap'
-                spellcheck='true',
-                autocapitalize='true',
-                contenteditable='true',
-                ref='editorSpellcheck'
-                v-html='content'
-              )
       .editor-markdown-editor(ref='cmContainer')
         textarea(ref='cm')
       transition(name='editor-markdown-preview')
@@ -417,11 +405,7 @@ export default {
     locale: get('page/locale'),
     path: get('page/path'),
     mode: get('editor/mode'),
-    activeModal: sync('editor/activeModal'),
-    content: sync('editor/content'),
-    contentPreview() {
-      return _.escape(this.content);
-    }
+    activeModal: sync('editor/activeModal')
   },
   watch: {
     previewShown (newValue, oldValue) {
@@ -434,9 +418,9 @@ export default {
       }
     },
     spellModeActive (newValue, oldValue) {
-      if (newValue) {
+      if (newValue && !oldValue) {
         this.$nextTick(() => {
-          // this.$refs.editorSpellcheck.focus()
+          this.enableSpellCheck();
         })
       }
     }
@@ -453,38 +437,31 @@ export default {
     onCmInput: _.debounce(function (newContent) {
       this.processContent(newContent)
     }, 600),
-    onCmPaste (cm, ev) {
-      // const clipItems = (ev.clipboardData || ev.originalEvent.clipboardData).items
-      // for (let clipItem of clipItems) {
-      //   if (_.startsWith(clipItem.type, 'image/')) {
-      //     const file = clipItem.getAsFile()
-      //     const reader = new FileReader()
-      //     reader.onload = evt => {
-      //       this.$store.commit(`loadingStart`, 'editor-paste-image')
-      //       this.insertAfter({
-      //         content: `![${file.name}](${evt.target.result})`,
-      //         newLine: true
-      //       })
-      //     }
-      //     reader.readAsDataURL(file)
-      //   }
-      // }
+    getSpellCheckElements() {
+      return Array.from(this.$refs.cmContainer.querySelectorAll('pre[role="presentation"] span'));
     },
-    processClickEvents(elem) {
-      elem.setAttribute('spellcheck', 'true')
-      this.clickQueue(() => {
-        const box = elem.getBoundingClientRect()
-        const coordX = box.left + (box.right - box.left) / 2
-        const coordY = box.top + (box.bottom - box.top) / 2
-        elem.dispatchEvent(new MouseEvent("mousedown", {
-          view: window,
-          bubbles: true,
-          cancelable: true,
-          clientX: coordX,
-          clientY: coordY,
-          button: 0
-        }))
-      });
+    enableSpellCheck() {
+      this.getSpellCheckElements().forEach(elem => {
+        elem.setAttribute('spellcheck', 'true')
+        this.clickQueue(() => {
+          const box = elem.getBoundingClientRect()
+          const coordX = box.left + (box.right - box.left) / 2
+          const coordY = box.top + (box.bottom - box.top) / 2
+          elem.dispatchEvent(new MouseEvent("mousedown", {
+            view: window,
+            bubbles: true,
+            cancelable: true,
+            clientX: coordX,
+            clientY: coordY,
+            button: 0
+          }))
+        });
+      })
+    },
+    verifySpellCheck() {
+      this.getSpellCheckElements().forEach(elem => {
+        elem.setAttribute('spellcheck', 'true')
+      })
     },
     processContent (newContent) {
       linesMap = []
@@ -496,7 +473,7 @@ export default {
         this.renderMermaidDiagrams()
         Prism.highlightAllUnder(this.$refs.editorPreview)
         Array.from(this.$refs.editorPreview.querySelectorAll('pre.line-numbers')).forEach(pre => pre.classList.add('prismjs'))
-        Array.from(this.$refs.cmContainer.querySelectorAll('pre[role="presentation"] span')).forEach(this.processClickEvents)
+        this.verifySpellCheck()
         this.scrollSync(this.cm)
       })
     },
@@ -785,9 +762,6 @@ export default {
       highlightSelectionMatches: {
         annotateScrollbar: true
       },
-      spellcheck: true,
-      autocorrect: true,
-      autocapitalize: true,
       viewportMargin: 50,
       inputStyle: 'contenteditable',
       allowDropFileTypes: ['image/jpg', 'image/png', 'image/svg', 'image/jpeg', 'image/gif'],
@@ -850,10 +824,6 @@ export default {
       this.positionSync(c)
       this.scrollSync(c)
     })
-
-    // Handle special paste
-
-    this.cm.on('paste', this.onCmPaste)
 
     // Render initial preview
 
