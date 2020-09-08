@@ -431,6 +431,17 @@ export default {
     onCmInput: _.debounce(function (newContent) {
       this.processContent(newContent)
     }, 600),
+    onCmRenderLine(elem) {
+      if (this.spellCheckModeActive) {
+        this.setElementSpellCheckAttributes(elem)
+        elem.focus()
+      }
+    },
+    setElementSpellCheckAttributes(elem) {
+      elem.setAttribute('spellcheck', 'true')
+      elem.setAttribute('autocorrect', 'on')
+      elem.setAttribute('autocapitalize', 'on')
+    },
     enableSpellCheckMode() {
       this.spellCheckModeActive = true;
       this.spellCheckProgress = true
@@ -462,17 +473,6 @@ export default {
         })
         clickQueue.start()
       })
-    },
-    onCmRenderLine(elem) {
-      if (this.spellCheckModeActive) {
-        this.setElementSpellCheckAttributes(elem)
-        elem.focus()
-      }
-    },
-    setElementSpellCheckAttributes(elem) {
-      elem.setAttribute('spellcheck', 'true')
-      elem.setAttribute('autocorrect', 'on')
-      elem.setAttribute('autocapitalize', 'on')
     },
     processContent (newContent) {
       linesMap = []
