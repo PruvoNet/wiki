@@ -100,9 +100,9 @@
           span {{$t('editor:markup.horizontalBar')}}
         template(v-if='$vuetify.breakpoint.mdAndUp')
           v-spacer
-          v-tooltip(bottom, color='primary', v-if="!spellModeActive")
+          v-tooltip(bottom, color='primary')
             template(v-slot:activator='{ on }')
-              v-btn.animated.fadeIn.wait-p1s(icon, tile, v-on='on', @click='spellModeActive = true').mx-0
+              v-btn.animated.fadeIn.wait-p1s(icon, tile, v-on='on', @click='enableSpellMode()').mx-0
                 v-icon(color='white') mdi-spellcheck
             span '{{$t('editor:markup.toggleSpellcheck')}}'
           v-tooltip(bottom, color='primary')
@@ -417,19 +417,6 @@ export default {
           Array.from(this.$refs.editorPreview.querySelectorAll('pre.line-numbers')).forEach(pre => pre.classList.add('prismjs'))
         })
       }
-    },
-    spellModeActive (newValue, oldValue) {
-      if (newValue && !oldValue) {
-        this.spellCheckProgress = true
-        const cmCursor = this.cm.getCursor()
-        const clickQueue = rateQueue(100, () => {
-          this.cm.setCursor(cmCursor);
-          this.spellCheckProgress = false
-        })
-        this.$nextTick(() => {
-          this.enableSpellCheck(clickQueue);
-        })
-      }
     }
   },
   methods: {
@@ -444,8 +431,20 @@ export default {
     onCmInput: _.debounce(function (newContent) {
       this.processContent(newContent)
     }, 600),
+    enableSpellMode() {
+      this.spellModeActive = true;
+      this.spellCheckProgress = true
+      const cmCursor = this.cm.getCursor()
+      const clickQueue = rateQueue(100, () => {
+        this.cm.setCursor(cmCursor);
+        this.spellCheckProgress = false
+      })
+      this.$nextTick(() => {
+        this.enableSpellCheck(clickQueue);
+      })
+    },
     getSpellCheckElements() {
-      return Array.from(this.$refs.cmContainer.querySelectorAll('pre[role="presentation"] span:not([spellcheck])'));
+      return Array.from(this.$refs.cmContainer.querySelectorAll('pre[role="presentation"] span'));
     },
     onCmRenderLine(elem) {
       if (this.spellModeActive) {
@@ -481,9 +480,6 @@ export default {
       })
       clickQueue.start()
     },
-    verifySpellCheck() {
-      this.getSpellCheckElements().forEach(this.setElementSpellCheckAttributes, this)
-    },
     processContent (newContent) {
       linesMap = []
       this.processMarkers(this.cm.firstLine(), this.cm.lastLine())
@@ -493,7 +489,6 @@ export default {
         this.renderMermaidDiagrams()
         Prism.highlightAllUnder(this.$refs.editorPreview)
         Array.from(this.$refs.editorPreview.querySelectorAll('pre.line-numbers')).forEach(pre => pre.classList.add('prismjs'))
-        this.verifySpellCheck()
         this.scrollSync(this.cm)
       })
     },
