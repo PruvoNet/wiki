@@ -446,8 +446,7 @@ export default {
       this.spellCheckModeActive = true;
       this.spellCheckProgress = true
       const cmCursor = this.cm.getCursor()
-      const clickQueue = rateQueue(100, () => {
-        this.cm.setCursor(cmCursor);
+      const clickQueue = rateQueue(150, () => {
         this.spellCheckProgress = false
       })
       this.$nextTick(() => {
@@ -469,7 +468,10 @@ export default {
               clientY: coordY,
               button: 0
             }))
-          });
+          })
+        })
+        clickQueue.queue(() => {
+          this.cm.setCursor(cmCursor);
         })
         clickQueue.start()
       })
