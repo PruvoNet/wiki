@@ -10,10 +10,18 @@ module.exports = (rateMs, finishCb) => {
       finishCb && finishCb()
     }
   }
-  return (item) => {
-    stack.push(item)
-    if (timer === null) {
-      timer = setInterval(process, rateMs)
+  return {
+    queue: (item) => {
+      stack.push(item)
+    },
+    start: () => {
+      if (timer === null) {
+        if (stack.length === 0) {
+          finishCb && finishCb()
+        } else {
+          timer = setInterval(process, rateMs)
+        }
+      }
     }
   }
 }

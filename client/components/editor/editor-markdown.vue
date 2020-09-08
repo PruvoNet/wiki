@@ -448,14 +448,10 @@ export default {
       return Array.from(this.$refs.cmContainer.querySelectorAll('pre[role="presentation"] span:not([spellcheck])'));
     },
     enableSpellCheck(clickQueue) {
-      const elements = this.getSpellCheckElements()
-      if (elements.length === 0) {
-        // Make sure the queue will call the finish callback
-        clickQueue(() => {})
-      }
-      elements.forEach(elem => {
+      this.$refs.cmContainer.setAttribute('spellcheck', 'true')
+      this.getSpellCheckElements().forEach(elem => {
         elem.setAttribute('spellcheck', 'true')
-        clickQueue(() => {
+        clickQueue.queue(() => {
           const box = elem.getBoundingClientRect()
           const coordX = box.left + (box.right - box.left) / 2
           const coordY = box.top + (box.bottom - box.top) / 2
@@ -469,6 +465,7 @@ export default {
           }))
         });
       })
+      clickQueue.start()
     },
     verifySpellCheck() {
       this.getSpellCheckElements().forEach(elem => {
