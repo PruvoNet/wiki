@@ -486,7 +486,6 @@ export default {
     },
     processContent (newContent) {
       linesMap = []
-      // this.$store.set('editor/content', newContent)
       this.processMarkers(this.cm.firstLine(), this.cm.lastLine())
       this.previewHTML = DOMPurify.sanitize(md.render(newContent))
       this.$nextTick(() => {
