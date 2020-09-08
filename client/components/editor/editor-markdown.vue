@@ -100,7 +100,7 @@
           span {{$t('editor:markup.horizontalBar')}}
         template(v-if='$vuetify.breakpoint.mdAndUp')
           v-spacer
-          v-tooltip(bottom, color='primary', v-if='!spellModeActive')
+          v-tooltip(bottom, color='primary', v-if="!spellModeActive")
             template(v-slot:activator='{ on }')
               v-btn.animated.fadeIn.wait-p1s(icon, tile, v-on='on', @click='spellModeActive = true').mx-0
                 v-icon(color='white') mdi-spellcheck
@@ -361,7 +361,7 @@ md.renderer.rules.katex_block = (tokens, idx) => {
 
 md.renderer.rules.emoji = (token, idx) => {
   return twemoji.parse(token[idx].content, {
-    callback (icon, opts) {
+    callback (icon) {
       return `/_assets/svg/twemoji/${icon}.svg`
     }
   })
@@ -447,10 +447,24 @@ export default {
     getSpellCheckElements() {
       return Array.from(this.$refs.cmContainer.querySelectorAll('pre[role="presentation"] span:not([spellcheck])'));
     },
+    onCmRenderLine(elem) {
+      if (this.spellModeActive) {
+        this.setElementSpellCheckAttributes(elem)
+        elem.focus()
+      }
+    },
+    setElementSpellCheckAttributes(elem) {
+      elem.setAttribute('spellcheck', 'true')
+      elem.setAttribute('autocorrect', 'on')
+      elem.setAttribute('autocapitalize', 'on')
+    },
     enableSpellCheck(clickQueue) {
-      this.$refs.cmContainer.setAttribute('spellcheck', 'true')
+      const cmInputField = this.cm.getInputField()
+      this.setElementSpellCheckAttributes(cmInputField)
+      cmInputField.focus()
+      this.setElementSpellCheckAttributes(this.$refs.cmContainer)
       this.getSpellCheckElements().forEach(elem => {
-        elem.setAttribute('spellcheck', 'true')
+        this.setElementSpellCheckAttributes(elem)
         clickQueue.queue(() => {
           const box = elem.getBoundingClientRect()
           const coordX = box.left + (box.right - box.left) / 2
@@ -468,9 +482,7 @@ export default {
       clickQueue.start()
     },
     verifySpellCheck() {
-      this.getSpellCheckElements().forEach(elem => {
-        elem.setAttribute('spellcheck', 'true')
-      })
+      this.getSpellCheckElements().forEach(this.setElementSpellCheckAttributes, this)
     },
     processContent (newContent) {
       linesMap = []
@@ -516,13 +528,13 @@ export default {
       if (_.startsWith(lineContent, '#')) {
         lineContent = lineContent.replace(/^(#+ )/, '')
       }
-      lineContent = _.times(lvl, n => '#').join('') + ` ` + lineContent
+      lineContent = _.times(lvl, () => '#').join('') + ` ` + lineContent
       this.cm.doc.replaceRange(lineContent, { line: curLine, ch: 0 }, { line: curLine, ch: lineLength })
     },
     /**
      * Get the header lever of the current line
      */
-    getHeaderLevel(cm) {
+    getHeaderLevel() {
       const curLine = this.cm.doc.getCursor('head').line
       let lineContent = this.cm.doc.getLine(curLine)
       let lvl = 0
@@ -625,7 +637,7 @@ export default {
         const curLine = cm.getLine(change.from.line).substring(0, change.from.ch)
         if (curLine[curLine.length - 1] === ']') {
           cm.showHint({
-            hint: async (cm, options) => {
+            hint: async (cm) => {
               const cur = cm.getCursor()
               const token = cm.getTokenAt(cur)
               try {
@@ -709,7 +721,7 @@ export default {
                 to: { line: foundStart, ch: 10 },
                 text: 'Edit Diagram',
                 action: ((start, end) => {
-                  return (ev) => {
+                  return () => {
                     this.cm.doc.setSelection({ line: start, ch: 0 }, { line: end, ch: 3 })
                     try {
                       const raw = this.cm.doc.getLine(end - 1)
@@ -758,7 +770,7 @@ export default {
 
     // Initialize CodeMirror
 
-    this.cm = CodeMirror.fromTextArea(this.$refs.cm, {
+    window._cm = this.cm = CodeMirror.fromTextArea(this.$refs.cm, {
       tabSize: 2,
       mode: 'text/markdown',
       theme: 'wikijs-dark',
@@ -781,6 +793,9 @@ export default {
       this.$store.set('editor/content', c.getValue())
       this.onCmInput(this.$store.get('editor/content'))
     })
+    this.cm.on('renderLine', (cm, line, elem) => {
+      this.onCmRenderLine(elem)
+    })
     if (this.$vuetify.breakpoint.mdAndUp) {
       this.cm.setSize(null, 'calc(100vh - 112px - 24px)')
     } else {
@@ -797,15 +812,15 @@ export default {
         if (c.getOption('fullScreen')) c.setOption('fullScreen', false)
       }
     }
-    _.set(keyBindings, `${CtrlKey}-S`, c => {
+    _.set(keyBindings, `${CtrlKey}-S`, () => {
       this.save()
       return false
     })
-    _.set(keyBindings, `${CtrlKey}-B`, c => {
+    _.set(keyBindings, `${CtrlKey}-B`, () => {
       this.toggleMarkup({ start: `**` })
       return false
     })
-    _.set(keyBindings, `${CtrlKey}-I`, c => {
+    _.set(keyBindings, `${CtrlKey}-I`, () => {
       this.toggleMarkup({ start: `*` })
       return false
     })
