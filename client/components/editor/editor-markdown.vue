@@ -102,7 +102,7 @@
           v-spacer
           v-tooltip(bottom, color='primary')
             template(v-slot:activator='{ on }')
-              v-btn.animated.fadeIn.wait-p1s(icon, tile, v-on='on', @click='enableSpellMode()').mx-0
+              v-btn.animated.fadeIn.wait-p1s(icon, tile, v-on='on', @click='enableSpellCheckMode()').mx-0
                 v-icon(color='white') mdi-spellcheck
             span '{{$t('editor:markup.toggleSpellcheck')}}'
           v-tooltip(bottom, color='primary')
@@ -391,7 +391,7 @@ export default {
       previewShown: true,
       previewHTML: '',
       helpShown: false,
-      spellModeActive: false,
+      spellCheckModeActive: false,
       spellCheckProgress: false,
       insertLinkDialog: false
     }
@@ -431,8 +431,8 @@ export default {
     onCmInput: _.debounce(function (newContent) {
       this.processContent(newContent)
     }, 600),
-    enableSpellMode() {
-      this.spellModeActive = true;
+    enableSpellCheckMode() {
+      this.spellCheckModeActive = true;
       this.spellCheckProgress = true
       const cmCursor = this.cm.getCursor()
       const clickQueue = rateQueue(100, () => {
@@ -440,14 +440,31 @@ export default {
         this.spellCheckProgress = false
       })
       this.$nextTick(() => {
-        this.enableSpellCheck(clickQueue);
+        const cmInputField = this.cm.getInputField()
+        this.setElementSpellCheckAttributes(cmInputField)
+        cmInputField.focus()
+        this.setElementSpellCheckAttributes(this.$refs.cmContainer)
+        Array.from(this.$refs.cmContainer.querySelectorAll('pre[role="presentation"] span')).forEach(elem => {
+          this.setElementSpellCheckAttributes(elem)
+          clickQueue.queue(() => {
+            const box = elem.getBoundingClientRect()
+            const coordX = box.left + (box.right - box.left) / 2
+            const coordY = box.top + (box.bottom - box.top) / 2
+            elem.dispatchEvent(new MouseEvent("mousedown", {
+              view: window,
+              bubbles: true,
+              cancelable: true,
+              clientX: coordX,
+              clientY: coordY,
+              button: 0
+            }))
+          });
+        })
+        clickQueue.start()
       })
     },
-    getSpellCheckElements() {
-      return Array.from(this.$refs.cmContainer.querySelectorAll('pre[role="presentation"] span'));
-    },
     onCmRenderLine(elem) {
-      if (this.spellModeActive) {
+      if (this.spellCheckModeActive) {
         this.setElementSpellCheckAttributes(elem)
         elem.focus()
       }
@@ -456,29 +473,6 @@ export default {
       elem.setAttribute('spellcheck', 'true')
       elem.setAttribute('autocorrect', 'on')
       elem.setAttribute('autocapitalize', 'on')
-    },
-    enableSpellCheck(clickQueue) {
-      const cmInputField = this.cm.getInputField()
-      this.setElementSpellCheckAttributes(cmInputField)
-      cmInputField.focus()
-      this.setElementSpellCheckAttributes(this.$refs.cmContainer)
-      this.getSpellCheckElements().forEach(elem => {
-        this.setElementSpellCheckAttributes(elem)
-        clickQueue.queue(() => {
-          const box = elem.getBoundingClientRect()
-          const coordX = box.left + (box.right - box.left) / 2
-          const coordY = box.top + (box.bottom - box.top) / 2
-          elem.dispatchEvent(new MouseEvent("mousedown", {
-            view: window,
-            bubbles: true,
-            cancelable: true,
-            clientX: coordX,
-            clientY: coordY,
-            button: 0
-          }))
-        });
-      })
-      clickQueue.start()
     },
     processContent (newContent) {
       linesMap = []
